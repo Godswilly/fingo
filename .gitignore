@@ -1,0 +1,17 @@
+# Binaries
+bin/
+out/
+dist/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+
+# OS junk
+.DS_Store
+
+# Go specific
+vendor/
+*.test
+*.out

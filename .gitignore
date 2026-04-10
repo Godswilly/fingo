@@ -15,3 +15,6 @@ dist/
 vendor/
 *.test
 *.out
+
+GO_BACKEND_MASTERY_ROADMAP_25HRS.md
+planning/

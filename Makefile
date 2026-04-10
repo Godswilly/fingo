@@ -2,7 +2,14 @@ GOCACHE ?= /tmp/gocache
 GOMODCACHE ?= /tmp/gomodcache
 GO ?= go
 
-.PHONY: test test-race lint build ci
+.PHONY: fmt-check test test-race lint build ci
+
+fmt-check:
+	@if [ -n "$$(gofmt -l .)" ]; then \
+		echo "The following files are not formatted:"; \
+		gofmt -l .; \
+		exit 1; \
+	fi
 
 test:
 	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) $(GO) test ./...
@@ -24,4 +31,4 @@ build:
 	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) $(GO) build -o bin/fingo-worker ./cmd/fingo-worker
 	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) $(GO) build -o bin/fingo-migrate ./cmd/fingo-migrate
 
-ci: lint test test-race build
+ci: fmt-check lint test test-race build

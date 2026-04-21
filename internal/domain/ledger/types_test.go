@@ -94,6 +94,10 @@ func TestNewJournalEntry_ValidationErrors_TableDriven(t *testing.T) {
 	if err != nil {
 		t.Fatalf("setup posting: %v", err)
 	}
+	validCredit, err := NewPosting("acc-2", 100, SideCredit, "")
+	if err != nil {
+		t.Fatalf("setup posting: %v", err)
+	}
 
 	cases := []struct {
 		name         string
@@ -106,7 +110,7 @@ func TestNewJournalEntry_ValidationErrors_TableDriven(t *testing.T) {
 			input: CreateJournalEntryInput{
 				ID:        "",
 				Reference: "ref-1",
-				Postings:  []Posting{validPosting},
+				Postings:  []Posting{validPosting, validCredit},
 			},
 			wantSentinel: ErrJournalIDRequired,
 			wantCode:     errs.CodeInvalidArgument,
@@ -116,7 +120,7 @@ func TestNewJournalEntry_ValidationErrors_TableDriven(t *testing.T) {
 			input: CreateJournalEntryInput{
 				ID:        "jrn-1",
 				Reference: " ",
-				Postings:  []Posting{validPosting},
+				Postings:  []Posting{validPosting, validCredit},
 			},
 			wantSentinel: ErrReferenceRequired,
 			wantCode:     errs.CodeInvalidArgument,
@@ -128,15 +132,15 @@ func TestNewJournalEntry_ValidationErrors_TableDriven(t *testing.T) {
 				Reference: "ref-1",
 				Postings:  nil,
 			},
-			wantSentinel: ErrPostingRequired,
-			wantCode:     errs.CodeInvalidArgument,
+			wantSentinel: ErrTooFewPostings,
+			wantCode:     errs.CodeInvariantViolation,
 		},
 		{
 			name: "empty metadata key",
 			input: CreateJournalEntryInput{
 				ID:        "jrn-1",
 				Reference: "ref-1",
-				Postings:  []Posting{validPosting},
+				Postings:  []Posting{validPosting, validCredit},
 				Metadata: map[string]string{
 					" ": "value",
 				},
@@ -241,7 +245,11 @@ func TestNewJournalEntry_ImmutableDataAndDefaults(t *testing.T) {
 func TestNewJournalEntry_UsesProvidedCreatedAt(t *testing.T) {
 	t.Parallel()
 
-	posting, err := NewPosting("acc-1", 100, SideDebit, "")
+	debit, err := NewPosting("acc-1", 100, SideDebit, "")
+	if err != nil {
+		t.Fatalf("setup posting: %v", err)
+	}
+	credit, err := NewPosting("acc-2", 100, SideCredit, "")
 	if err != nil {
 		t.Fatalf("setup posting: %v", err)
 	}
@@ -252,7 +260,7 @@ func TestNewJournalEntry_UsesProvidedCreatedAt(t *testing.T) {
 		ID:        "jrn-1",
 		Reference: "ref-1",
 		CreatedAt: expectedTime,
-		Postings:  []Posting{posting},
+		Postings:  []Posting{debit, credit},
 	})
 	if err != nil {
 		t.Fatalf("expected success, got %v", err)
@@ -265,6 +273,147 @@ func TestNewJournalEntry_UsesProvidedCreatedAt(t *testing.T) {
 	if entry.CreatedAt().Location() != time.UTC {
 		t.Fatalf("expected createdAt location UTC, got %v", entry.CreatedAt().Location())
 	}
+}
+
+func TestNewJournalEntry_InvariantViolations_TableDriven(t *testing.T) {
+	t.Parallel()
+
+	debit100, err := NewPosting("acc-1", 100, SideDebit, "USD")
+	if err != nil {
+		t.Fatalf("setup debit: %v", err)
+	}
+	credit100, err := NewPosting("acc-2", 100, SideCredit, "USD")
+	if err != nil {
+		t.Fatalf("setup credit: %v", err)
+	}
+	credit90, err := NewPosting("acc-2", 90, SideCredit, "USD")
+	if err != nil {
+		t.Fatalf("setup credit: %v", err)
+	}
+	debitMax, err := NewPosting("acc-1", 9_223_372_036_854_775_000, SideDebit, "USD")
+	if err != nil {
+		t.Fatalf("setup debit max: %v", err)
+	}
+	debitLarge, err := NewPosting("acc-3", 900, SideDebit, "USD")
+	if err != nil {
+		t.Fatalf("setup debit large: %v", err)
+	}
+	creditMax, err := NewPosting("acc-2", 9_223_372_036_854_775_000, SideCredit, "USD")
+	if err != nil {
+		t.Fatalf("setup credit max: %v", err)
+	}
+	creditLarge, err := NewPosting("acc-4", 900, SideCredit, "USD")
+	if err != nil {
+		t.Fatalf("setup credit large: %v", err)
+	}
+
+	cases := []struct {
+		name         string
+		postings     []Posting
+		wantSentinel error
+		wantCode     errs.Code
+	}{
+		{
+			name:         "too few postings",
+			postings:     []Posting{debit100},
+			wantSentinel: ErrTooFewPostings,
+			wantCode:     errs.CodeInvariantViolation,
+		},
+		{
+			name:         "unbalanced postings",
+			postings:     []Posting{debit100, credit90},
+			wantSentinel: ErrUnbalancedPostings,
+			wantCode:     errs.CodeInvariantViolation,
+		},
+		{
+			name:         "debit total overflow",
+			postings:     []Posting{debitMax, debitLarge, credit100},
+			wantSentinel: ErrPostingTotalsOverflow,
+			wantCode:     errs.CodeInvariantViolation,
+		},
+		{
+			name:         "credit total overflow",
+			postings:     []Posting{creditMax, creditLarge, debit100},
+			wantSentinel: ErrPostingTotalsOverflow,
+			wantCode:     errs.CodeInvariantViolation,
+		},
+		{
+			name: "mixed currencies are rejected",
+			postings: []Posting{
+				mustPosting(t, "acc-1", 100, SideDebit, "USD"),
+				mustPosting(t, "acc-2", 100, SideCredit, "EUR"),
+			},
+			wantSentinel: ErrMixedCurrencies,
+			wantCode:     errs.CodeInvariantViolation,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, gotErr := NewJournalEntry(CreateJournalEntryInput{
+				ID:        "jrn-inv-1",
+				Reference: "ref-inv-1",
+				Postings:  tc.postings,
+			})
+			assertDomainError(t, gotErr, tc.wantSentinel, tc.wantCode)
+		})
+	}
+}
+
+func TestNewJournalEntry_InvariantSuccessCases_TableDriven(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		postings []Posting
+	}{
+		{
+			name: "balanced 3+ postings",
+			postings: []Posting{
+				mustPosting(t, "cash", 70, SideDebit, "USD"),
+				mustPosting(t, "fees", 30, SideDebit, "USD"),
+				mustPosting(t, "liability", 100, SideCredit, "USD"),
+			},
+		},
+		{
+			name: "same account can appear multiple times",
+			postings: []Posting{
+				mustPosting(t, "acc-1", 20, SideDebit, "USD"),
+				mustPosting(t, "acc-1", 80, SideDebit, "USD"),
+				mustPosting(t, "acc-2", 100, SideCredit, "USD"),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			entry, err := NewJournalEntry(CreateJournalEntryInput{
+				ID:        "jrn-ok-1",
+				Reference: "ref-ok-1",
+				Postings:  tc.postings,
+			})
+			if err != nil {
+				t.Fatalf("expected success, got %v", err)
+			}
+			if len(entry.Postings()) != len(tc.postings) {
+				t.Fatalf("unexpected posting count: want %d, got %d", len(tc.postings), len(entry.Postings()))
+			}
+		})
+	}
+}
+
+func mustPosting(t *testing.T, accountID string, amount int64, side PostingSide, currency string) Posting {
+	t.Helper()
+	p, err := NewPosting(accountID, amount, side, currency)
+	if err != nil {
+		t.Fatalf("setup posting failed: %v", err)
+	}
+	return p
 }
 
 func assertDomainError(t *testing.T, err error, wantSentinel error, wantCode errs.Code) {

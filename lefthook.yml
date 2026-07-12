@@ -1,0 +1,44 @@
+# Lefthook quality gates.
+#
+# Pre-commit: fast checks on staged files.
+# Pre-push: full local quality gates matching GitHub Actions.
+#
+# Bypass with `LEFTHOOK=0 git commit ...` or `LEFTHOOK=0 git push`
+# only when there is a clear reason, and mention it in the PR.
+
+pre-commit:
+  parallel: false
+  commands:
+    secret-scan:
+      run: scripts/check-secrets.sh
+
+    block-env-files:
+      glob:
+        - "**/.env"
+        - "**/.env.local"
+        - "**/.env.*.local"
+        - "**/.env.development"
+        - "**/.env.production"
+        - "**/.env.test"
+      run: |
+        echo "Blocked: do not commit env files."
+        echo "Files: {staged_files}"
+        exit 1
+
+    block-pem-files:
+      glob: "**/*.pem"
+      run: |
+        echo "Blocked: do not commit PEM files (private keys / certificates)."
+        echo "Files: {staged_files}"
+        exit 1
+
+    gofmt:
+      glob: "**/*.go"
+      stage_fixed: true
+      run: gofmt -w {staged_files}
+
+pre-push:
+  parallel: false
+  commands:
+    quality-gates:
+      run: make quality-gates

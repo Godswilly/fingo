@@ -1,20 +1,21 @@
-name: CI
+name: Quality Gates
 
 on:
   pull_request:
     branches:
       - main
       - develop
+  # Only post-merge on main. develop is validated by incoming PRs, so
+  # triggering push here too would double-run many commits.
   push:
     branches:
       - main
-      - develop
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -25,6 +26,7 @@ jobs:
     env:
       GOCACHE: /tmp/gocache
       GOMODCACHE: /tmp/gomodcache
+      GOLANGCI_LINT_CACHE: /tmp/golangci-lint
 
     steps:
       - name: Checkout
@@ -39,13 +41,19 @@ jobs:
       - name: Format Check
         run: make fmt-check
 
+      - name: Secret scan
+        run: CHECK_SECRETS_SCOPE=all scripts/check-secrets.sh
+
+      - name: Architecture boundaries
+        run: make boundary-check
+
       - name: go vet
         run: GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go vet ./...
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.64.8
+          version: v2.12.2
           args: --timeout=5m
 
   test:

@@ -82,13 +82,17 @@ Hard invariants:
 1. Receive command with idempotency key.
 2. Validate input and domain preconditions.
 3. Start DB transaction.
-4. Acquire required locks for affected accounts.
-5. Insert journal + postings.
-6. Enforce zero-sum invariant before commit.
-7. Persist idempotency outcome.
-8. Insert outbox event in same transaction.
-9. Commit transaction.
-10. Worker publishes outbox event with retry/backoff.
+4. Atomically reserve the idempotency key as `in_progress`.
+5. If the key already exists, evaluate the persisted record against the incoming fingerprint.
+6. For a replay decision, load the authoritative journal by result reference.
+7. For a failed-record retry, claim the retry with a conditional failed -> `in_progress` update.
+8. Acquire required locks for affected accounts.
+9. Insert journal + postings.
+10. Enforce zero-sum invariant before commit.
+11. Persist idempotency outcome.
+12. Insert outbox event in the same transaction.
+13. Commit transaction.
+14. Worker publishes outbox event with retry/backoff.
 
 This prevents dual-write inconsistencies (DB commit without event or vice versa).
 
@@ -104,6 +108,10 @@ Failure handling:
 - Retry transient infra failures with bounded exponential backoff + jitter
 - Handle deadlocks with bounded retry policy
 - Preserve idempotency across client and worker retries
+- Idempotency reservation must use an atomic insert/upsert, not read-then-write.
+- Failed idempotency retries must use a conditional failed -> `in_progress` update.
+- `failed` idempotency rows are produced by an out-of-band recovery/reaper flow,
+  not by the normal transfer transaction.
 
 ## 7) API and Error Model
 

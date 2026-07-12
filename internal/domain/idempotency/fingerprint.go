@@ -19,10 +19,13 @@ var (
 
 // Command is the canonical input used to derive deterministic idempotency fingerprints.
 type Command struct {
-	Operation string
-	AccountID string
-	Reference string
-	Amount    int64
+	Operation     string
+	AccountID     string
+	FromAccountID string
+	ToAccountID   string
+	Currency      string
+	Reference     string
+	Amount        int64
 }
 
 func BuildFingerprint(cmd Command) (string, error) {
@@ -44,11 +47,24 @@ func BuildFingerprint(cmd Command) (string, error) {
 		)
 	}
 
-	canonical := op + "|" +
-		strings.TrimSpace(cmd.AccountID) + "|" +
-		strconv.FormatInt(cmd.Amount, 10) + "|" +
-		strings.TrimSpace(cmd.Reference)
+	var canonical strings.Builder
+	writeCanonicalField(&canonical, "operation", op)
+	writeCanonicalField(&canonical, "account_id", strings.TrimSpace(cmd.AccountID))
+	writeCanonicalField(&canonical, "from_account_id", strings.TrimSpace(cmd.FromAccountID))
+	writeCanonicalField(&canonical, "to_account_id", strings.TrimSpace(cmd.ToAccountID))
+	writeCanonicalField(&canonical, "amount", strconv.FormatInt(cmd.Amount, 10))
+	writeCanonicalField(&canonical, "currency", strings.ToUpper(strings.TrimSpace(cmd.Currency)))
+	writeCanonicalField(&canonical, "reference", strings.TrimSpace(cmd.Reference))
 
-	sum := sha256.Sum256([]byte(canonical))
+	sum := sha256.Sum256([]byte(canonical.String()))
 	return hex.EncodeToString(sum[:]), nil
+}
+
+func writeCanonicalField(b *strings.Builder, name, value string) {
+	b.WriteString(name)
+	b.WriteByte('=')
+	b.WriteString(strconv.Itoa(len(value)))
+	b.WriteByte(':')
+	b.WriteString(value)
+	b.WriteByte('\n')
 }

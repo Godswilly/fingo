@@ -44,6 +44,22 @@ Idempotency strategy (enforced in domain):
 - Empty/invalid keys or fingerprints are rejected as invalid argument
 - Unknown persisted idempotency status is treated as invariant violation
 
+Idempotency persistence strategy (enforced by adapters):
+
+- First-time keys are claimed with an atomic insert/upsert to `in_progress`;
+  adapters must not implement this as read-then-write because no row exists to
+  lock yet.
+- Existing idempotency rows are returned under a lock before the application
+  calls the domain decision matrix.
+- Retrying a `failed` row requires a compare-and-swap transition from `failed`
+  to `in_progress` for the same key and fingerprint.
+- If the failed-row compare-and-swap loses, the application re-evaluates the
+  fresh locked row through the same domain decision matrix.
+- `failed` rows are produced by an out-of-band recovery/reaper flow for stuck or
+  abandoned `in_progress` records, not by the normal transfer transaction.
+- Completed records store a result reference that must resolve to an
+  authoritative journal entry during replay.
+
 Error semantics:
 
 - rule/input violations -> `invalid_argument`
@@ -82,7 +98,8 @@ Error semantics:
 3. Concurrent duplicate requests while first request is still processing
 
 - Risk: double execution race
-- Control: `in_progress` status maps to `retry_later`
+- Control: atomic idempotency reservation ensures only one request can claim a
+  new key; the loser sees `in_progress`, which maps to `retry_later`
 
 4. Unbalanced posting set
 
@@ -104,6 +121,18 @@ Error semantics:
 - Risk: undefined behavior in retries
 - Control: unknown status treated as invariant violation and rejected
 
+8. Concurrent retries of a failed idempotency record
+
+- Risk: duplicate re-execution from two callers that both observe `failed`
+- Control: failed -> `in_progress` compare-and-swap allows only one retry owner;
+  losers re-evaluate the fresh row and return replay/retry/conflict as needed
+
+9. Completed idempotency record points at a missing journal
+
+- Risk: replay returns fabricated or incomplete audit data
+- Control: missing result reference or missing journal is treated as invariant
+  violation
+
 ## Consequences
 
 Positive:
@@ -124,4 +153,5 @@ Negative:
 - Implement persistence adapter for idempotency records with transactional guarantees
 - Add integration tests for DB transaction + idempotency behavior under concurrency
 - Document API-level idempotency contract in transport docs (request headers/fields and replay semantics)
-- Track status transition rules in runbooks and incident response guides
+- Implement and document the recovery/reaper flow that marks abandoned
+  `in_progress` rows as `failed`

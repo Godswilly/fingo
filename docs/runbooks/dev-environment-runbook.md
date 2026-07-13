@@ -7,6 +7,7 @@ This runbook covers local setup, core commands, and common failure fixes.
 - Go 1.24+
 - Git
 - Make
+- Lefthook (recommended for local quality gates)
 - Docker (for later DB/integration workflows)
 - Optional: `golangci-lint` for full local lint checks
 
@@ -16,7 +17,11 @@ This runbook covers local setup, core commands, and common failure fixes.
 git clone <repo-url>
 cd fingo
 go mod download
+make install-hooks
 ```
+
+`make install-hooks` installs Lefthook so staged-file checks run before commit
+and the full local quality gate runs before push.
 
 ## Core Commands
 
@@ -26,14 +31,23 @@ make lint
 make test
 make test-race
 make build
+make quality-gates
 make ci
+make check-secrets
+make boundary-check
+make install-hooks
+make uninstall-hooks
 ```
 
 Outputs:
 
 - binaries are produced in `bin/`
 - tests run across all packages
-- `make ci` runs full local quality gates
+- `make quality-gates` runs the full local quality gate suite
+- `make ci` is kept as an alias for `make quality-gates`
+- `make install-hooks` enables local pre-commit and pre-push checks
+- `make boundary-check` enforces the package dependency rules from
+  `docs/architecture/package-boundaries.md`
 
 ## Recommended Environment Variables (Current Baseline)
 
@@ -110,6 +124,17 @@ make fmt-check
 
 ## Week 1 Operating Routine
 
-- Before push: `make ci`
+- One-time setup after clone: `make install-hooks`
+- Before commit: Lefthook runs fast staged-file checks
+- Before push: Lefthook runs `make quality-gates`
 - Before opening PR: ensure branch is rebased/updated
 - After merge: pull latest `develop` before starting next task branch
+
+To bypass Lefthook for an exceptional commit or push:
+
+```bash
+LEFTHOOK=0 git commit ...
+LEFTHOOK=0 git push
+```
+
+Mention the reason for bypassing local checks in the PR.

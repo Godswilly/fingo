@@ -54,9 +54,48 @@ Outputs:
 ```bash
 export FINGO_APP_ENV=local
 export FINGO_LOG_LEVEL=info
-export FINGO_DATABASE_URL='postgres://user:pass@localhost:5432/fingo?sslmode=disable'
+export FINGO_DATABASE_URL='postgres://fingo:fingo@localhost:5432/fingo?sslmode=disable'
 export FINGO_NATS_URL='nats://localhost:4222'
 export FINGO_API_ADDR=':8080'
+```
+
+## Local Postgres & Migrations
+
+```bash
+make postgres-up      # start Postgres via docker compose and wait for it to be healthy
+make migrate          # apply pending migrations using FINGO_DATABASE_URL
+make test-integration # start Postgres, migrate, then run the Postgres integration tests
+make sqlc-generate    # regenerate typed Postgres query code after SQL changes
+make postgres-down    # stop and remove the local Postgres container
+```
+
+`FINGO_DATABASE_URL` defaults to
+`postgres://fingo:fingo@localhost:5432/fingo?sslmode=disable` if unset for
+`make migrate`/`make test-integration`.
+
+Integration tests live in `internal/database/postgres` behind the
+`integration` build tag, so `make test`/`make test-race` never require a
+running database.
+
+Postgres query SQL lives in `sql/queries`, sqlc's schema snapshot lives in
+`sql/schema`, migration SQL lives in `migrations`, and generated query code
+lives under `internal/database/db`.
+
+To inspect tables directly:
+
+```bash
+docker compose exec postgres psql -U fingo -d fingo -c '\dt'
+docker compose exec postgres psql -U fingo -d fingo -c 'select * from accounts;'
+docker compose exec postgres psql -U fingo -d fingo -c 'select * from ledger_journal;'
+docker compose exec postgres psql -U fingo -d fingo -c 'select * from ledger_postings;'
+docker compose exec postgres psql -U fingo -d fingo -c 'select * from idempotency_keys;'
+docker compose exec postgres psql -U fingo -d fingo -c 'select * from outbox_events;'
+```
+
+To fully reset local Postgres state (drops the data volume):
+
+```bash
+docker compose down -v
 ```
 
 ## Common Failures and Fixes

@@ -69,7 +69,7 @@ Financial systems fail when ledger correctness, idempotency, and reliability are
 ## 10. Scope by Phases (16-week plan alignment)
 
 1. Phase 1: Foundation (structure, config, errors, CI, tests).
-2. Phase 2: Domain + persistence correctness (schema, transactions, idempotency).
+2. Phase 2: Domain + database correctness (schema, transactions, idempotency).
 3. Phase 3: API + outbox + observability baseline.
 4. Phase 4: Performance, resilience, release hardening.
 

@@ -6,7 +6,7 @@
 
 ## Context
 
-FinGo is a correctness-first ledger system. To prevent accidental coupling between transport, persistence, and business rules, we need explicit package boundaries and dependency rules from Week 1.
+FinGo is a correctness-first ledger system. To prevent accidental coupling between transport, database, and business rules, we need explicit package boundaries and dependency rules from Week 1.
 
 Without strict boundaries:
 
@@ -23,7 +23,7 @@ Adopt a layered structure with inward dependencies:
 - `internal/domain/*` for business entities and invariants
 - `internal/app/*` for use-case orchestration
 - `internal/transport/*` for protocol adapters (HTTP/gRPC)
-- `internal/persistence/*` for storage adapters (Postgres/migrations)
+- `internal/database/*` for storage adapters (Postgres)
 - `internal/messaging/*` for event adapters (NATS)
 - `internal/config`, `internal/errs`, `internal/observability`, `internal/platform` for cross-cutting concerns
 
@@ -31,7 +31,7 @@ Dependency rule:
 
 - outer layers may depend inward
 - inner layers must not depend outward
-- specifically, domain must not import transport/persistence/messaging
+- specifically, domain must not import transport/database/messaging
 
 ## Alternatives considered
 
@@ -63,4 +63,4 @@ Negative:
 
 - Enforce the boundary rule in code reviews
 - Keep ADRs for major architectural changes
-- Add integration tests per adapter once persistence and transport are implemented
+- Add integration tests per adapter once database and transport are implemented

@@ -8,6 +8,6 @@
 - `config`: environment and runtime configuration loading/validation
 - `platform`: process wiring/bootstrap composition root
 - `transport`: inbound adapters (`http`, `grpc`)
-- `persistence`: outbound storage adapters (`postgres`, `migrations`)
+- `database`: outbound storage adapters (`postgres`)
 - `messaging`: outbound event adapters (`nats`)
 - `observability`: logging, metrics, tracing setup

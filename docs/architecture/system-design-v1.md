@@ -27,12 +27,12 @@ FinGo uses a layered hexagonal structure:
 - `internal/domain/*` enforces business invariants
 - `internal/app/*` orchestrates use-cases
 - `internal/transport/*` exposes API protocols
-- `internal/persistence/*` handles Postgres I/O
+- `internal/database/*` handles Postgres I/O
 - `internal/messaging/*` handles NATS publish/consume
 
 Dependency direction is inward:
 
-`transport/persistence/messaging -> app -> domain`
+`transport/database/messaging -> app -> domain`
 
 ## 3) Process and Container View
 

@@ -1,5 +1,27 @@
 # FinGo: Distributed Ledger Engine
 
+## Project Structure
+
+FinGo is a backend-only Go service. Its layout follows the Builder backend
+shape while keeping FinGo's hexagonal boundaries:
+
+```text
+cmd/                  # process entrypoints
+internal/
+  app/                # use-case orchestration
+  config/             # configuration loading
+  database/
+    db/               # generated sqlc package
+    postgres/         # Postgres adapters implementing app ports
+  domain/             # business invariants
+  errs/               # typed internal errors
+migrations/           # executable migration history
+sql/
+  schema/             # current schema snapshot for sqlc
+  queries/            # sqlc query files
+scripts/              # local checks and maintenance scripts
+```
+
 ## Quality Commands
 
 Run all commands from repo root.
@@ -10,6 +32,8 @@ Run all commands from repo root.
 - `make lint`: run `go vet` and `golangci-lint` (if installed)
 - `make build`: compile all service entrypoints into `bin/`
 - `make ci`: run lint + test + race + build in one command
+- `make sqlc-generate`: regenerate `internal/database/db` from `sql/`
+- `make sqlc-verify`: compile sqlc schema/query configuration
 
 Notes:
 

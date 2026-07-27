@@ -44,7 +44,7 @@ Idempotency strategy (enforced in domain):
 - Empty/invalid keys or fingerprints are rejected as invalid argument
 - Unknown persisted idempotency status is treated as invariant violation
 
-Idempotency persistence strategy (enforced by adapters):
+Idempotency database strategy (enforced by adapters):
 
 - First-time keys are claimed with an atomic insert/upsert to `in_progress`;
   adapters must not implement this as read-then-write because no row exists to
@@ -71,7 +71,7 @@ Error semantics:
 1. Database-only enforcement (minimal domain rules)
 
 - Pros: fewer domain checks, leverage DB constraints
-- Cons: correctness is delayed to persistence layer, weaker local testability, less explicit failure semantics in application flow
+- Cons: correctness is delayed to the database layer, weaker local testability, less explicit failure semantics in application flow
 
 2. Signed amount model (no explicit debit/credit side)
 
@@ -146,11 +146,11 @@ Negative:
 
 - more upfront domain modeling and tests
 - stricter validation can reject previously accepted malformed inputs
-- persistence layer must preserve state transitions expected by the decision matrix
+- database layer must preserve state transitions expected by the decision matrix
 
 ## Follow-up actions
 
-- Implement persistence adapter for idempotency records with transactional guarantees
+- Implement database adapter for idempotency records with transactional guarantees
 - Add integration tests for DB transaction + idempotency behavior under concurrency
 - Document API-level idempotency contract in transport docs (request headers/fields and replay semantics)
 - Implement and document the recovery/reaper flow that marks abandoned

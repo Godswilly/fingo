@@ -22,7 +22,7 @@ Purpose: private application code.
 - `internal/domain`: domain entities/value objects/invariants
 - `internal/app`: use-cases coordinating domain + adapters
 - `internal/transport`: adapters for inbound protocols (gRPC/HTTP)
-- `internal/persistence`: adapters for data stores (Postgres)
+- `internal/database`: adapters for data stores (Postgres)
 - `internal/messaging`: adapters for NATS event publishing/consuming
 - `internal/observability`: logging/metrics/tracing setup
 - `internal/config`: config parsing + validation
@@ -31,7 +31,7 @@ Purpose: private application code.
 
 Rules:
 
-- Domain code must not import transport/persistence/messaging packages.
+- Domain code must not import transport/database/messaging packages.
 - Adapters depend inward on domain/app; never the reverse.
 - Cross-package dependencies should follow: `cmd -> platform/app -> domain`.
 

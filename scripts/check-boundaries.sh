@@ -18,7 +18,7 @@ check_import() {
 		case "$imp" in
 		"$module_path/internal/app" | "$module_path/internal/app/"* | \
 			"$module_path/internal/transport" | "$module_path/internal/transport/"* | \
-			"$module_path/internal/persistence" | "$module_path/internal/persistence/"* | \
+			"$module_path/internal/database" | "$module_path/internal/database/"* | \
 			"$module_path/internal/messaging" | "$module_path/internal/messaging/"* | \
 			"$module_path/internal/platform" | "$module_path/internal/platform/"*)
 			add_violation "$pkg" "$imp" "domain packages must not import outer layers"
@@ -28,7 +28,7 @@ check_import() {
 	"$module_path/internal/app" | "$module_path/internal/app/"*)
 		case "$imp" in
 		"$module_path/internal/transport" | "$module_path/internal/transport/"* | \
-			"$module_path/internal/persistence" | "$module_path/internal/persistence/"* | \
+			"$module_path/internal/database" | "$module_path/internal/database/"* | \
 			"$module_path/internal/messaging" | "$module_path/internal/messaging/"* | \
 			"$module_path/internal/platform" | "$module_path/internal/platform/"*)
 			add_violation "$pkg" "$imp" "app packages must depend inward only"
@@ -37,25 +37,25 @@ check_import() {
 		;;
 	"$module_path/internal/transport" | "$module_path/internal/transport/"*)
 		case "$imp" in
-		"$module_path/internal/persistence" | "$module_path/internal/persistence/"* | \
+		"$module_path/internal/database" | "$module_path/internal/database/"* | \
 			"$module_path/internal/messaging" | "$module_path/internal/messaging/"*)
 			add_violation "$pkg" "$imp" "transport adapters must not depend on outbound adapters"
 			;;
 		esac
 		;;
-	"$module_path/internal/persistence" | "$module_path/internal/persistence/"*)
+	"$module_path/internal/database" | "$module_path/internal/database/"*)
 		case "$imp" in
 		"$module_path/internal/transport" | "$module_path/internal/transport/"* | \
 			"$module_path/internal/messaging" | "$module_path/internal/messaging/"*)
-			add_violation "$pkg" "$imp" "persistence adapters must not depend on transport or messaging adapters"
+			add_violation "$pkg" "$imp" "database adapters must not depend on transport or messaging adapters"
 			;;
 		esac
 		;;
 	"$module_path/internal/messaging" | "$module_path/internal/messaging/"*)
 		case "$imp" in
 		"$module_path/internal/transport" | "$module_path/internal/transport/"* | \
-			"$module_path/internal/persistence" | "$module_path/internal/persistence/"*)
-			add_violation "$pkg" "$imp" "messaging adapters must not depend on transport or persistence adapters"
+			"$module_path/internal/database" | "$module_path/internal/database/"*)
+			add_violation "$pkg" "$imp" "messaging adapters must not depend on transport or database adapters"
 			;;
 		esac
 		;;
